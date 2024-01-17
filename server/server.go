@@ -18,7 +18,7 @@ func serve() {
 	r := gin.New()
 	r.Use(gin.LoggerWithWriter(log.StandardLogger().Out), gin.RecoveryWithWriter(log.StandardLogger().Out))
 	initRouter(r)
-	httpBase := fmt.Sprintf("%s:%d", conf.GetConfig().Server.Address, conf.GetConfig().Server.HttpPort)
+	httpBase := fmt.Sprintf("%s:%d", conf.GetConfig().App.Address, conf.GetConfig().App.HttpPort)
 	log.Infof("start HTTP server @ %s", httpBase)
 	httpSrv = &http.Server{Addr: httpBase, Handler: r}
 	go func() {

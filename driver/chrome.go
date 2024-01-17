@@ -8,6 +8,8 @@ import (
 	"time"
 )
 
+var DefaultUa = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/98.0.4758.102 Safari/537.36"
+
 type Chrome struct {
 	ua      string
 	options []chromedp.ExecAllocatorOption
@@ -15,7 +17,10 @@ type Chrome struct {
 	timeout time.Duration
 }
 
-func NewChrome(headless bool, ua string, timeout time.Duration) *Chrome {
+func NewChrome(headless bool, timeout time.Duration, ua string) *Chrome {
+	if ua == "" {
+		ua = DefaultUa
+	}
 	options := append(chromedp.DefaultExecAllocatorOptions[:],
 		chromedp.Flag("headless", headless),
 		chromedp.Flag("disable-gpu", true),

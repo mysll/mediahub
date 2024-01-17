@@ -15,18 +15,11 @@ func GetConfig() *Config {
 }
 
 type Database struct {
-	Type        string `json:"type" env:"TYPE"`
-	Host        string `json:"host" env:"HOST"`
-	Port        int    `json:"port" env:"PORT"`
-	User        string `json:"user" env:"USER"`
-	Password    string `json:"password" env:"PASS"`
-	Name        string `json:"name" env:"NAME"`
 	DBFile      string `json:"db_file" env:"FILE"`
 	TablePrefix string `json:"table_prefix" env:"TABLE_PREFIX"`
-	SSLMode     string `json:"ssl_mode" env:"SSL_MODE"`
 }
 
-type Server struct {
+type App struct {
 	Address  string `json:"address" env:"ADDR"`
 	HttpPort int    `json:"http_port" env:"HTTP_PORT"`
 }
@@ -38,8 +31,8 @@ type Cors struct {
 }
 
 type Config struct {
+	App      App      `json:"app"`
 	Database Database `json:"database"`
-	Server   Server   `json:"server"`
 	Cors     Cors     `json:"cors" envPrefix:"CORS_"`
 }
 
@@ -60,10 +53,11 @@ func (c *Config) Save(f string) error {
 	}
 	return os.WriteFile(f, bytes, os.ModePerm)
 }
+
 func DefaultConfig() *Config {
 	dbPath := filepath.Join(options.DataPath, "data.db")
 	config = &Config{
-		Server: Server{
+		App: App{
 			Address:  "0.0.0.0",
 			HttpPort: 3005,
 		},
