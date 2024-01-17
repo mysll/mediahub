@@ -37,6 +37,5 @@ func shutdown() {
 		if err := httpSrv.Shutdown(ctx); err != nil {
 			log.Fatal("HTTP server shutdown err: ", err)
 		}
-
 	}
 }
