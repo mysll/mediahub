@@ -1,4 +1,4 @@
-package server
+package web
 
 import (
 	"github.com/gin-contrib/cors"
@@ -6,15 +6,20 @@ import (
 	"mediahub/internal/conf"
 )
 
-func initRouter(r *gin.Engine) {
-	Cors(r)
+func Init(e *gin.Engine) {
+	Cors(e)
+	g := e.Group(conf.GetConfig().App.SiteURL)
+
+	g.Any("/ping", func(c *gin.Context) {
+		c.String(200, "pong")
+	})
 }
 
-func Cors(r *gin.Engine) {
+func Cors(e *gin.Engine) {
 	config := cors.DefaultConfig()
 	//config.AllowAllOrigins = true
 	config.AllowOrigins = conf.GetConfig().Cors.AllowOrigins
 	config.AllowHeaders = conf.GetConfig().Cors.AllowHeaders
 	config.AllowMethods = conf.GetConfig().Cors.AllowMethods
-	r.Use(cors.New(config))
+	e.Use(cors.New(config))
 }

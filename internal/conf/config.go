@@ -22,6 +22,7 @@ type Database struct {
 type App struct {
 	Address  string `json:"address" env:"ADDR"`
 	HttpPort int    `json:"http_port" env:"HTTP_PORT"`
+	SiteURL  string `json:"site_url" env:"SITE_URL"`
 }
 
 type Cors struct {

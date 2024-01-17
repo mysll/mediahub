@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 	log "github.com/sirupsen/logrus"
 	"mediahub/internal/conf"
+	"mediahub/web"
 	"net/http"
 	"time"
 )
@@ -17,7 +18,7 @@ func serve() {
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.New()
 	r.Use(gin.LoggerWithWriter(log.StandardLogger().Out), gin.RecoveryWithWriter(log.StandardLogger().Out))
-	initRouter(r)
+	web.Init(r)
 	httpBase := fmt.Sprintf("%s:%d", conf.GetConfig().App.Address, conf.GetConfig().App.HttpPort)
 	log.Infof("start HTTP server @ %s", httpBase)
 	httpSrv = &http.Server{Addr: httpBase, Handler: r}
