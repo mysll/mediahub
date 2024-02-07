@@ -1,2 +1,2 @@
 # mediahub
-media hua
+media hub
