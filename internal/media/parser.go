@@ -349,26 +349,24 @@ func NewParseSeason(m *Meta) Step {
 }
 
 func (p *ParseSeason) Run(ctx *Parser, token string) bool {
-	seasons := SeasonRe.FindAllStringSubmatch(token, -1)
+	seasons := SeasonRe.FindStringSubmatch(token)
 	if len(seasons) > 0 {
-		for _, seasonTuple := range seasons {
-			for _, se := range seasonTuple {
-				if se == "" {
-					continue
-				}
-				if DigitRe.MatchString(se) {
-					se, _ := strconv.Atoi(se)
-					if p.meta.BeginSeason == 0 {
-						p.meta.BeginSeason = se
-						p.meta.TotalSeasons = 1
-					} else {
-						if se > p.meta.BeginSeason {
-							p.meta.EndSeason = se
-							p.meta.TotalSeasons = p.meta.EndSeason - p.meta.BeginSeason + 1
-							if p.meta.IsFile && p.meta.TotalSeasons > 1 {
-								p.meta.EndSeason = 0
-								p.meta.TotalSeasons = 1
-							}
+		for _, se := range seasons {
+			if se == "" {
+				continue
+			}
+			if DigitRe.MatchString(se) {
+				se, _ := strconv.Atoi(se)
+				if p.meta.BeginSeason == 0 {
+					p.meta.BeginSeason = se
+					p.meta.TotalSeasons = 1
+				} else {
+					if se > p.meta.BeginSeason {
+						p.meta.EndSeason = se
+						p.meta.TotalSeasons = p.meta.EndSeason - p.meta.BeginSeason + 1
+						if p.meta.IsFile && p.meta.TotalSeasons > 1 {
+							p.meta.EndSeason = 0
+							p.meta.TotalSeasons = 1
 						}
 					}
 				}
@@ -404,26 +402,25 @@ func NewParseEpisode(m *Meta) Step {
 }
 
 func (p *ParseEpisode) Run(ctx *Parser, token string) bool {
-	episodes := EpisodeRe.FindAllStringSubmatch(token, -1)
+	episodes := EpisodeRe.FindStringSubmatch(token)
 	if len(episodes) > 0 {
-		for _, episodesTuple := range episodes {
-			for _, ep := range episodesTuple {
-				if ep == "" {
-					continue
-				}
-				if DigitRe.MatchString(ep) {
-					se, _ := strconv.Atoi(ep)
-					if p.meta.BeginEpisode == 0 {
-						p.meta.BeginEpisode = se
-						p.meta.TotalEpisodes = 1
-					} else {
-						if se > p.meta.BeginEpisode {
-							p.meta.EndEpisode = se
-							p.meta.TotalEpisodes = p.meta.EndEpisode - p.meta.BeginEpisode + 1
-							if p.meta.IsFile && p.meta.TotalEpisodes > 2 {
-								p.meta.EndEpisode = 0
-								p.meta.TotalEpisodes = 1
-							}
+
+		for _, ep := range episodes {
+			if ep == "" {
+				continue
+			}
+			if DigitRe.MatchString(ep) {
+				se, _ := strconv.Atoi(ep)
+				if p.meta.BeginEpisode == 0 {
+					p.meta.BeginEpisode = se
+					p.meta.TotalEpisodes = 1
+				} else {
+					if se > p.meta.BeginEpisode {
+						p.meta.EndEpisode = se
+						p.meta.TotalEpisodes = p.meta.EndEpisode - p.meta.BeginEpisode + 1
+						if p.meta.IsFile && p.meta.TotalEpisodes > 2 {
+							p.meta.EndEpisode = 0
+							p.meta.TotalEpisodes = 1
 						}
 					}
 				}

@@ -2,6 +2,7 @@ package media
 
 import (
 	"fmt"
+	"github.com/dlclark/regexp2"
 	log "github.com/sirupsen/logrus"
 	"mediahub/internal/utils"
 	"regexp"
@@ -26,7 +27,7 @@ var (
 		`|[248]K|\d{3,4}[PIX]+` +
 		`|CD[\s.]*[1-9]|DVD[\s.]*[1-9]|DISK[\s.]*[1-9]|DISC[\s.]*[1-9]`)
 	NameStripYear         = regexp.MustCompile(`([\s.]+)(\d{4})-(\d{4})`)
-	NameStripSize         = regexp.MustCompile(`(?i)[0-9.]+\s*[MGT]i?B([A-Z]*)`)
+	NameStripSize         = regexp2.MustCompile(`[0-9.]+\s*[MGT]i?B(?![A-Z]+)`, regexp2.IgnoreCase)
 	NameStripYearMonthDay = regexp.MustCompile(`\d{4}[\s._-]\d{1,2}[\s._-]\d{1,2}`)
 	RomanNumerals         = regexp.MustCompile(`^M*(C[MD]|D?C{0,3})(X[CL]|L?X{0,3})(I[XV]|V?I{0,3})$`)
 	EpisodeRe             = regexp.MustCompile(`(?i)EP?(\d{2,4})$|^EP?(\d{1,4})$|^S\d{1,2}EP?(\d{1,4})$|S\d{2}EP?(\d{2,4})`)
@@ -42,6 +43,11 @@ var (
 	VideoEncodeRe   = regexp.MustCompile(`(?i)^[HX]26[45]$|^AVC$|^HEVC$|^VC\d?$|^MPEG\d?$|^Xvid$|^DivX$|^HDR\d*$`)
 	AudioEncodeRe   = regexp.MustCompile(`(?i)^DTS\d?$|^DTSHD$|^DTSHDMA$|^Atmos$|^TrueHD\d?$|^AC3$|^\dAudios?$|^DDP\d?$|^DD\d?$|^LPCM\d?$|^AAC\d?$|^FLAC\d?$|^HD\d?$|^MA\d?$`)
 	PartRe          = regexp.MustCompile(`(?i)(^PART[0-9ABI]{0,2}$|^CD[0-9]{0,2}$|^DVD[0-9]{0,2}$|^DISK[0-9]{0,2}$|^DISC[0-9]{0,2}$)`)
+
+	SubtitleSeasonRe     = regexp2.MustCompile(`(?<![全|共]\s*)[第\s]+([0-9一二三四五六七八九十S\-]+)\s*季(?!\s*[全|共])`, regexp2.IgnoreCase)
+	SubtitleSeasonAllRe  = regexp2.MustCompile(`[全|共]\s*([0-9一二三四五六七八九十]+)\s*季|([0-9一二三四五六七八九十]+)\s*季\s*[全|共]`, regexp2.IgnoreCase)
+	SubtitleEpisodeRe    = regexp2.MustCompile(`(?<![全|共]\s*)[第\s]+([0-9一二三四五六七八九十百零EP\-]+)\s*[集话話期](?!\s*[全|共])`, regexp2.IgnoreCase)
+	SubtitleEpisodeAllRe = regexp2.MustCompile(`([0-9一二三四五六七八九十百零]+)\s*集\s*[全|共]|[全|共]\s*([0-9一二三四五六七八九十百零]+)\s*[集话話期]`, regexp2.IgnoreCase)
 )
 
 type MetaInfo interface {
@@ -122,8 +128,11 @@ type MetaVideo struct {
 }
 
 func NewMetaVideo(title, subtitle string, isFile bool) *MetaVideo {
+	if title == "" {
+		return nil
+	}
 	self := &MetaVideo{
-		Meta: &Meta{OrgTitle: title, Subtitle: subtitle, IsFile: isFile},
+		Meta: &Meta{OrgTitle: title, OrgString: title, Subtitle: subtitle, IsFile: isFile},
 	}
 	// 判断是否纯数字命名的文件
 	name := utils.GetFileName(title)
@@ -137,7 +146,7 @@ func NewMetaVideo(title, subtitle string, isFile bool) *MetaVideo {
 	// 把xxxx-xxxx年份换成前一个年份，常出现在季集上
 	title = NameStripYear.ReplaceAllString(title, "$1$2")
 	// 把大小去掉
-	title = NameStripSize.ReplaceAllString(title, "")
+	title = utils.ReplaceString(NameStripSize, title, "")
 	// 把年月日去掉
 	title = NameStripYearMonthDay.ReplaceAllString(title, "")
 	self.parseTitle(title)
@@ -169,6 +178,20 @@ func (m *MetaVideo) parseTitle(title string) {
 	if p.Source != "" {
 		m.ResourceType = strings.TrimSpace(p.Source)
 	}
+	if strings.Contains(m.ResourceType, "BluRay") {
+		ok1, _ := regexp.MatchString(`D[Ii]Y`, m.Subtitle)
+		ok2, _ := regexp.MatchString(`-D[Ii]Y@`, m.OrgTitle)
+		if m.Subtitle != "" && ok1 || ok2 {
+			m.ResourceType = fmt.Sprintf("%s DIY", m.ResourceType)
+		}
+	}
+
+	if !m.parseSubtitle(m.OrgString) {
+		if m.Subtitle != "" {
+			m.parseSubtitle(m.Subtitle)
+		}
+	}
+
 	// 默认为电影
 	if m.MediaType == MediaTypeUnknown {
 		m.MediaType = MediaTypeMovie
@@ -178,12 +201,96 @@ func (m *MetaVideo) parseTitle(title string) {
 	}
 }
 
-func (m *MetaVideo) parsePart(token string) {
+func (m *MetaVideo) parseSubtitle(title string) bool {
+	find := false
+	if title == "" {
+		return find
+	}
 
-}
+	title = fmt.Sprintf(" %s ", title)
+	if ok, _ := regexp.MatchString(`[全第季集话話期]`, title); ok {
+		//第x季
+		if match, _ := SubtitleSeasonRe.FindStringMatch(title); match != nil {
+			season := match.Groups()[1].Capture.String()
+			season = strings.TrimSpace(strings.Replace(strings.ToUpper(season), "S", "", -1))
+			seasons := strings.Split(season, "-")
+			var beginSeason, endSeason int
+			if len(seasons) == 2 {
+				beginSeason = int(utils.CnToNumber(seasons[0], 0))
+				endSeason = int(utils.CnToNumber(seasons[1], 0))
+			} else {
+				beginSeason = int(utils.CnToNumber(seasons[0], 0))
+			}
+			if beginSeason > 0 || endSeason > 0 {
 
-func (m *MetaVideo) parseName(token string) {
-
+				if beginSeason > 0 && m.BeginSeason == 0 {
+					m.BeginSeason = beginSeason
+					m.TotalSeasons = 1
+				}
+				if endSeason > 0 && beginSeason != endSeason && m.EndSeason == 0 {
+					m.EndSeason = endSeason
+					m.TotalSeasons = m.EndSeason - m.BeginSeason + 1
+				}
+				m.MediaType = MediaTypeTv
+				find = true
+			}
+		}
+		// 第x集
+		if match, _ := SubtitleEpisodeRe.FindStringMatch(title); match != nil {
+			episode := strings.ToUpper(match.Groups()[1].Capture.String())
+			episode = strings.Replace(episode, "E", "", -1)
+			episode = strings.TrimSpace(strings.Replace(episode, "P", "", -1))
+			episodes := strings.Split(episode, "-")
+			var beginEpisode, endEpisode int
+			if len(episodes) == 2 {
+				beginEpisode = int(utils.CnToNumber(episodes[0], 0))
+				endEpisode = int(utils.CnToNumber(episodes[1], 0))
+			} else {
+				beginEpisode = int(utils.CnToNumber(episodes[0], 0))
+			}
+			if beginEpisode > 0 || endEpisode > 0 {
+				if beginEpisode > 0 && m.BeginEpisode == 0 {
+					m.BeginEpisode = beginEpisode
+					m.TotalEpisodes = 1
+				}
+				if endEpisode > 0 && beginEpisode != endEpisode && m.EndEpisode == 0 {
+					m.EndEpisode = endEpisode
+					m.TotalEpisodes = m.EndEpisode - m.BeginEpisode + 1
+				}
+				m.MediaType = MediaTypeTv
+				find = true
+			}
+		}
+		// x集全
+		if match, _ := SubtitleEpisodeAllRe.FindStringMatch(title); match != nil {
+			episode := strings.ToUpper(match.Groups()[1].Capture.String())
+			if episode == "" {
+				episode = strings.ToUpper(match.Groups()[2].Capture.String())
+			}
+			if episode != "" && m.TotalEpisodes == 0 {
+				m.TotalEpisodes = int(utils.CnToNumber(strings.TrimSpace(episode), 0))
+				m.BeginEpisode = 1
+				m.EndEpisode = m.TotalEpisodes
+				m.MediaType = MediaTypeTv
+				find = true
+			}
+		}
+		// 全x季 x季全
+		if match, _ := SubtitleSeasonAllRe.FindStringMatch(title); match != nil {
+			season := strings.ToUpper(match.Groups()[1].Capture.String())
+			if season == "" {
+				season = strings.ToUpper(match.Groups()[2].Capture.String())
+			}
+			if season != "" && m.TotalSeasons == 0 {
+				m.TotalSeasons = int(utils.CnToNumber(strings.TrimSpace(season), 0))
+				m.BeginSeason = 1
+				m.EndSeason = m.TotalSeasons
+				m.MediaType = MediaTypeTv
+				find = true
+			}
+		}
+	}
+	return find
 }
 
 type MetaAnim struct {

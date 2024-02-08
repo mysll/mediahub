@@ -18,11 +18,13 @@ require (
 require (
 	github.com/BurntSushi/toml v1.3.2 // indirect
 	github.com/NullpointerW/go-qbittorrent-apiv2 v0.0.16 // indirect
+	github.com/aiialzy/chinese-number v0.3.0 // indirect
 	github.com/bytedance/sonic v1.10.1 // indirect
 	github.com/chenzhuoyu/base64x v0.0.0-20230717121745-296ad89f973d // indirect
 	github.com/chenzhuoyu/iasm v0.9.0 // indirect
 	github.com/chromedp/sysutil v1.0.0 // indirect
 	github.com/cyruzin/golang-tmdb v1.5.7 // indirect
+	github.com/dlclark/regexp2 v1.10.0 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.2 // indirect
 	github.com/gin-contrib/sse v0.1.0 // indirect
 	github.com/go-playground/locales v0.14.1 // indirect
